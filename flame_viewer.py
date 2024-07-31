@@ -1,3 +1,6 @@
+import faulthandler
+faulthandler.enable()
+
 import src.flamelib.flame_runner as flame_runner
 import torch
 import open3d as o3d
@@ -5,8 +8,6 @@ import open3d.visualization.gui as gui
 import open3d.visualization.rendering as rendering
 import threading
 import time
-
-
 
 class FlameWindow:
     is_done = False

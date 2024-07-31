@@ -22,6 +22,8 @@ import torch.nn as nn
 import numpy as np
 from time import time
 from skimage.io import imread
+import cv2
+import pickle
 from .utils.renderer import SRenderY, set_rasterizer
 from .models.encoders import ResnetEncoder
 from .models.FLAME import FLAME, FLAMETex
@@ -29,7 +31,9 @@ from .models.decoders import Generator
 from .utils import util
 from .utils.rotation_converter import batch_euler2axis
 from .utils.tensor_cropper import transform_points
+from .datasets import datasets
 from .utils.config import cfg
+torch.backends.cudnn.benchmark = True
 
 class DECA(nn.Module):
     def __init__(self, config=None, device='cuda'):
@@ -305,14 +309,14 @@ class DECA(nn.Module):
                         colors = dense_colors,
                         inverse_face_order=True)
     
-    # def run(self, imagepath, iscrop=True):
-    #     ''' An api for running deca given an image path
-    #     '''
-    #     testdata = datasets.TestData(imagepath)
-    #     images = testdata[0]['image'].to(self.device)[None,...]
-    #     codedict = self.encode(images)
-    #     opdict, visdict = self.decode(codedict)
-    #     return codedict, opdict, visdict
+    def run(self, imagepath, iscrop=True):
+        ''' An api for running deca given an image path
+        '''
+        testdata = datasets.TestData(imagepath)
+        images = testdata[0]['image'].to(self.device)[None,...]
+        codedict = self.encode(images)
+        opdict, visdict = self.decode(codedict)
+        return codedict, opdict, visdict
 
     def model_dict(self):
         return {

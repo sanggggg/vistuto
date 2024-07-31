@@ -13,14 +13,17 @@
 # For comments or questions, please email us at deca@tue.mpg.de
 # For commercial licensing contact, please contact ps-license@tuebingen.mpg.de
 
-import os
+import os, sys
 import torch
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader
+import torchvision.transforms as transforms
 import numpy as np
 import cv2
+import scipy
 from skimage.io import imread, imsave
-from skimage.transform import estimate_transform, warp
+from skimage.transform import estimate_transform, warp, resize, rescale
 from glob import glob
+import scipy.io
 
 from . import detectors
 
@@ -99,14 +102,28 @@ class TestData(Dataset):
 
         h, w, _ = image.shape
         if self.iscrop:
-            bbox, bbox_type = self.face_detector.run(image)
-            if len(bbox) < 4:
-                print('no face detected! run original image')
-                left = 0; right = h-1; top=0; bottom=w-1
+            # provide kpt as txt file, or mat file (for AFLW2000)
+            kpt_matpath = os.path.splitext(imagepath)[0]+'.mat'
+            kpt_txtpath = os.path.splitext(imagepath)[0]+'.txt'
+            if os.path.exists(kpt_matpath):
+                kpt = scipy.io.loadmat(kpt_matpath)['pt3d_68'].T        
+                left = np.min(kpt[:,0]); right = np.max(kpt[:,0]); 
+                top = np.min(kpt[:,1]); bottom = np.max(kpt[:,1])
+                old_size, center = self.bbox2point(left, right, top, bottom, type='kpt68')
+            elif os.path.exists(kpt_txtpath):
+                kpt = np.loadtxt(kpt_txtpath)
+                left = np.min(kpt[:,0]); right = np.max(kpt[:,0]); 
+                top = np.min(kpt[:,1]); bottom = np.max(kpt[:,1])
+                old_size, center = self.bbox2point(left, right, top, bottom, type='kpt68')
             else:
-                left = bbox[0]; right=bbox[2]
-                top = bbox[1]; bottom=bbox[3]
-            old_size, center = self.bbox2point(left, right, top, bottom, type=bbox_type)
+                bbox, bbox_type = self.face_detector.run(image)
+                if len(bbox) < 4:
+                    print('no face detected! run original image')
+                    left = 0; right = h-1; top=0; bottom=w-1
+                else:
+                    left = bbox[0]; right=bbox[2]
+                    top = bbox[1]; bottom=bbox[3]
+                old_size, center = self.bbox2point(left, right, top, bottom, type=bbox_type)
             size = int(old_size*self.scale)
             src_pts = np.array([[center[0]-size/2, center[1]-size/2], [center[0] - size/2, center[1]+size/2], [center[0]+size/2, center[1]-size/2]])
         else:
@@ -123,5 +140,4 @@ class TestData(Dataset):
                 'imagename': imagename,
                 'tform': torch.tensor(tform.params).float(),
                 'original_image': torch.tensor(image.transpose(2,0,1)).float(),
-        }
-                
+                }
