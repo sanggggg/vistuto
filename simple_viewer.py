@@ -1,4 +1,5 @@
 import numpy as np
+import argparse
 import open3d as o3d
 import open3d.visualization.gui as gui
 import open3d.visualization.rendering as rendering
@@ -142,11 +143,15 @@ class App:
             self._geometry_ctrls.add_child(geom)
             self.window.set_needs_layout()
 
-def main():
+def main(args):
     gui.Application.instance.initialize()
 
     w = App(2048, 1536)
+    w.load(args.inputpath)
     gui.Application.instance.run()
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description='Simple Viewer')
+    parser.add_argument('-i', '--inputpath', default='assets', type=str,
+                        help='path to the obj file')        
+    main(parser.parse_args())
