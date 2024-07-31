@@ -4,9 +4,9 @@ from .FLAME import FLAME
 
 class Cfg:
     def __init__(self):
-        self.flame_model_path = 'models/male_model.pkl'  # acquire it from FLAME project page
-        self.static_landmark_embedding_path = 'models/flame_static_embedding.pkl'  # acquire it from FLAME project page
-        self.dynamic_landmark_embedding_path = 'models/flame_dynamic_embedding.npy'  # acquire it from RingNet project page
+        self.flame_model_path = 'data/male_model.pkl'  # acquire it from FLAME project page
+        self.static_landmark_embedding_path = 'data/flame_static_embedding.pkl'  # acquire it from FLAME project page
+        self.dynamic_landmark_embedding_path = 'data/flame_dynamic_embedding.npy'  # acquire it from RingNet project page
         self.shape_params = 100
         self.expression_params = 50
         self.pose_params = 6
