@@ -1,4 +1,4 @@
-import src.flame_runner as flame_runner
+import src.flamelib.flame_runner as flame_runner
 import torch
 import open3d as o3d
 import open3d.visualization.gui as gui
