@@ -10,8 +10,9 @@ import argparse
 
 
 class DECAWindow:
-    def __init__(self, timeline):
+    def __init__(self, timeline, faces):
         self.timeline = timeline
+        self.faces = faces
         # Setup window
         self.window = gui.Application.instance.create_window(
             "DECAViewer", 2000, 1000)
@@ -60,10 +61,9 @@ class DECAWindow:
         
     def frame_change(self, value, reset_camera=False):
         vertices = self.timeline[int(value)]['vertices']
-        faces = self.timeline[int(value)]['faces']
         mesh = o3d.geometry.TriangleMesh(
             o3d.utility.Vector3dVector(vertices),
-            o3d.utility.Vector3iVector(faces),
+            o3d.utility.Vector3iVector(self.faces),
         )
         mesh.compute_vertex_normals()
         self._scene.scene.clear_geometry()
@@ -90,26 +90,27 @@ def main(args):
     deca = DECA(config=deca_cfg, device='cuda')
     timeline = []
     i = 0
-    for data in testdata:
-        i += 1
-        name = data['imagename']
-        images = data['image'].to('cuda')[None,...]
-        with torch.no_grad():
-            codedict = deca.encode(images)
-            opdict, visdict = deca.decode(codedict)
-        vertices = opdict['verts'][0].cpu().numpy()
-        faces = deca.render.faces[0].cpu().numpy()
-        timeline += [
+    images = torch.stack([data['image'] for data in testdata]).to('cuda')
+    with torch.no_grad():
+        codedict = deca.encode(images)
+        opdict, visdict = deca.decode(codedict)
+    vertices = opdict['verts'].cpu().numpy()
+    faces = deca.render.faces[0].cpu().numpy()
+
+    print(len(images))
+    print(len(vertices))
+    print(faces.shape)
+    for i in range(len(images)):
+        timeline.append(
             {
-                'vertices': vertices,
-                'faces': faces,
-                'original': o3d.geometry.Image(tensor2image(images[0])),
+                'vertices': vertices[i],
+                'original': o3d.geometry.Image(tensor2image(images[i])),
             }
-        ]
+        )
     
     app = o3d.visualization.gui.Application.instance
     app.initialize()
-    window = DECAWindow(timeline)
+    window = DECAWindow(timeline, faces)
     app.run()
     
 
