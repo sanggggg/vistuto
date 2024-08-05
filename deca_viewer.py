@@ -42,6 +42,10 @@ class DECAWindow:
         self._origin_image = gui.ImageWidget(self.timeline[0]['original'])
         self._panel.add_child(self._origin_image)
 
+        # Setup Rendered Image Panel
+        self._origin_rendered_image = gui.ImageWidget(self.timeline[0]['rendered_on_original'])
+        self._panel.add_child(self._origin_rendered_image)
+
         self.window.add_child(self._panel)
 
         # Mat
@@ -69,6 +73,7 @@ class DECAWindow:
         self._scene.scene.clear_geometry()
         self._scene.scene.add_geometry("deca", mesh, self.mat)
         self._origin_image.update_image(self.timeline[int(value)]['original'])
+        self._origin_rendered_image.update_image(self.timeline[int(value)]['rendered_on_original'])
         if reset_camera:
             bounds = self._scene.scene.bounding_box
             self._scene.setup_camera(60.0, bounds, bounds.get_center())
@@ -86,27 +91,35 @@ def tensor2image(tensor):
     return image.astype(np.uint8).copy()
 
 def main(args):
-    testdata = datasets.TestData(args.inputpath, iscrop=True, crop_size=224, face_detector='fan', sample_step=10)
+    testdata = datasets.TestData(args.inputpath, iscrop=True, crop_size=224, face_detector='fan', sample_step=5)
     deca = DECA(config=deca_cfg, device='cuda')
-    timeline = []
-    i = 0
-    images = torch.stack([data['image'] for data in testdata]).to('cuda')
-    with torch.no_grad():
-        codedict = deca.encode(images)
-        opdict, visdict = deca.decode(codedict)
-    vertices = opdict['verts'].cpu().numpy()
-    faces = deca.render.faces[0].cpu().numpy()
 
-    print(len(images))
-    print(len(vertices))
-    print(faces.shape)
-    for i in range(len(images)):
-        timeline.append(
-            {
-                'vertices': vertices[i],
-                'original': o3d.geometry.Image(tensor2image(images[i])),
-            }
-        )
+    total_frames = len(testdata)
+    batch_size = 5
+    timeline = []
+
+    for i in range((total_frames - 1) // batch_size + 1):
+        if i == total_frames // batch_size:
+            batch_data = [testdata[x] for x in range(i*batch_size, total_frames)]
+        else:
+            batch_data = [testdata[x] for x in range(i*batch_size, (i+1)*batch_size)]
+        images = torch.stack([data['image'] for data in batch_data]).to('cuda')
+        original_images = torch.stack([data['original_image'] for data in batch_data]).to('cuda')
+        tforms = torch.stack([torch.inverse(data['tform']).transpose(0,1) for data in batch_data]).to('cuda')
+
+        with torch.no_grad():
+            codedict = deca.encode(images)
+            opdict, visdict = deca.decode(codedict, render_orig=True, tform=tforms, original_image=original_images)
+        vertices = opdict['verts'].cpu().numpy()
+        faces = deca.render.faces[0].cpu().numpy()
+        for j in range(len(images)):
+            timeline.append(
+                {
+                    'vertices': vertices[j],
+                    'original': o3d.geometry.Image(tensor2image(images[j])),
+                    'rendered_on_original': o3d.geometry.Image(tensor2image(visdict['shape_images'][j])),
+                }
+            )
     
     app = o3d.visualization.gui.Application.instance
     app.initialize()

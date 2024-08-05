@@ -32,16 +32,18 @@ def video2sequence(video_path, sample_step=10):
     os.makedirs(videofolder, exist_ok=True)
     video_name = os.path.splitext(os.path.split(video_path)[-1])[0]
     vidcap = cv2.VideoCapture(video_path)
-    success,image = vidcap.read()
-    count = 0
+    total_frames = int(vidcap.get(cv2.CAP_PROP_FRAME_COUNT))
+    current_frame = 0
     imagepath_list = []
-    while success:
-        # if count%sample_step == 0:
-        imagepath = os.path.join(videofolder, f'{video_name}_frame{count:04d}.jpg')
-        cv2.imwrite(imagepath, image)     # save frame as JPEG file
+    while current_frame < total_frames:
+        vidcap.set(cv2.CAP_PROP_POS_FRAMES, current_frame)
         success,image = vidcap.read()
-        count += 1
+        if not success:
+            break
+        imagepath = os.path.join(videofolder, f'{video_name}_frame{current_frame:04d}.jpg')
+        cv2.imwrite(imagepath, image)     # save frame as JPEG file
         imagepath_list.append(imagepath)
+        current_frame += sample_step
     print('video frames are stored in {}'.format(videofolder))
     return imagepath_list
 
