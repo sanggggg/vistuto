@@ -139,3 +139,5 @@ __pycache__/
 data/
 data2/
 assets/
+
+*.npy
