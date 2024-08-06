@@ -7,6 +7,7 @@ import open3d as o3d
 import open3d.visualization.gui as gui
 import open3d.visualization.rendering as rendering
 import threading
+import numpy as np
 import time
 
 class FlameWindow:
@@ -14,7 +15,9 @@ class FlameWindow:
     runner = flame_runner.FlameRunner()
     shape_params = torch.zeros(1, 100).cuda()
     pose_params = torch.zeros(1, 6, dtype=torch.float32).cuda()
+    neck_pose_params = torch.zeros(1, 3, dtype=torch.float32).cuda()
     expression_params = torch.zeros(1, 50, dtype=torch.float32).cuda()
+    sunglasses_params = np.array([0, 0.027, 0.058])
     is_updating = False
 
     def __init__(self):
@@ -56,6 +59,17 @@ class FlameWindow:
             self._panel.add_child(slider)
         self._panel.add_fixed(0.5 * em)
 
+        self._neck_pose_params = []
+        self._panel.add_child(gui.Label("Neck Pose Params"))
+        for i in range(3):
+            slider = gui.Slider(gui.Slider.Type.DOUBLE)
+            slider.set_limits(-3.0, 3.0)
+            self._neck_pose_params.append(slider)
+            slider.set_on_value_changed(self.param_change_callback('neck_pose', i))
+            self._panel.add_child(slider)
+        self._panel.add_fixed(0.5 * em)
+
+
         self._expression_params = []
         self._panel.add_child(gui.Label("Expression Params"))
         for i in range(10):
@@ -64,6 +78,18 @@ class FlameWindow:
             self._expression_params.append(slider)
             slider.set_on_value_changed(self.param_change_callback('expression', i))
             self._panel.add_child(slider)
+        self._panel.add_fixed(0.5 * em)
+
+        self._sunglass_params = []
+        self._panel.add_child(gui.Label("Sunglass Params"))
+        for i in range(3):
+            slider = gui.Slider(gui.Slider.Type.DOUBLE)
+            slider.set_limits(-0.1, 0.1)
+            slider.double_value = self.sunglasses_params[i]
+            self._sunglass_params.append(slider)
+            slider.set_on_value_changed(self.param_change_callback('sunglasses', i))
+            self._panel.add_child(slider)
+        self._panel.add_fixed(0.5 * em)
         self._panel.add_fixed(0.5 * em)
 
         self.window.add_child(self._panel)
@@ -79,8 +105,12 @@ class FlameWindow:
                 self.shape_params[0, idx] = value
             elif typ == 'pose':
                 self.pose_params[0, idx] = value
+            elif typ == 'neck_pose':
+                self.neck_pose_params[0, idx] = value
             elif typ == 'expression':
                 self.expression_params[0, idx] = value
+            elif typ == 'sunglasses':
+                self.sunglasses_params[idx] = value
             
             threading.Thread(target=self.calculate).start()
         return inner
@@ -103,20 +133,39 @@ class FlameWindow:
         if self.is_updating:
             return
         self.is_updating = True
-        vertices, faces = self.runner.run(self.shape_params, self.pose_params, self.expression_params)
+        vertices, faces, trans = self.runner.run(self.shape_params, self.pose_params, self.neck_pose_params, self.expression_params)
         mesh = o3d.geometry.TriangleMesh(
             o3d.utility.Vector3dVector(vertices),
             o3d.utility.Vector3iVector(faces),
         )
         mesh.compute_vertex_normals()
+        sunglasses = transform_mesh(np.array(
+            [[0.1, 0, 0, self.sunglasses_params[0]],
+             [0, 0.1, 0, self.sunglasses_params[1]],
+             [0, 0, 0.1, self.sunglasses_params[2]],
+             [0, 0, 0, 1],
+            ]
+        ), o3d.io.read_triangle_model("assets/Sunglasses.obj").meshes[0].mesh)
+        sunglasses = transform_mesh(trans[0][1].detach().cpu().numpy(), sunglasses)
+        sunglasses.compute_vertex_normals()
+
         def update():
             self._scene.scene.clear_geometry()
             self._scene.scene.add_geometry("flame", mesh, self.mat)
+            self._scene.scene.add_geometry("suglasses", sunglasses, self.mat)
             if reset_camera:
                 bounds = self._scene.scene.bounding_box
                 self._scene.setup_camera(60.0, bounds, bounds.get_center())
             self.is_updating = False
         gui.Application.instance.post_to_main_thread(self.window, update)
+
+def transform_mesh(mat, mesh):
+    homo_vertices = np.pad(np.array(mesh.vertices), ((0, 0), (0, 1)), mode='constant', constant_values=1)
+    trans_vertices = (np.matmul(mat, homo_vertices.T).T)[:, :3]
+    return o3d.geometry.TriangleMesh(
+        o3d.utility.Vector3dVector(trans_vertices),
+        mesh.triangles,
+    )
 
 if __name__ == "__main__":
     app = o3d.visualization.gui.Application.instance

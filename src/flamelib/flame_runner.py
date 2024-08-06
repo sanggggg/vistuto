@@ -22,12 +22,11 @@ class FlameRunner:
         self.flamelayer = FLAME(config)
         self.flamelayer.cuda()
     
-    def run(self, shape_params, pose_params, expression_params):
-        neck_pose = torch.zeros(1, 3).cuda()
+    def run(self, shape_params, pose_params, neck_pose_params, expression_params):
         eye_pose = torch.zeros(1, 6).cuda()
-        vertice, landmark = self.flamelayer(
-            shape_params, expression_params, pose_params, neck_pose, eye_pose
+        vertice, landmark, trans = self.flamelayer(
+            shape_params, expression_params, pose_params, neck_pose_params, eye_pose
         )
         faces = self.flamelayer.faces
         vertices = vertice[0].detach().cpu().numpy().squeeze()
-        return vertices, faces
+        return vertices, faces, trans

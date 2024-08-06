@@ -30,8 +30,8 @@ import pickle
 import numpy as np
 import torch
 import torch.nn as nn
-from smplx.lbs import batch_rodrigues, lbs, vertices2landmarks
 from smplx.utils import Struct, rot_mat_to_euler, to_np, to_tensor
+from .lbs import batch_rodrigues, lbs, vertices2landmarks
 
 
 class FLAME(nn.Module):
@@ -255,7 +255,7 @@ class FLAME(nn.Module):
         )
         template_vertices = self.v_template.unsqueeze(0).repeat(self.batch_size, 1, 1)
 
-        vertices, _ = lbs(
+        vertices, _, A = lbs(
             betas,
             full_pose,
             template_vertices,
@@ -295,4 +295,4 @@ class FLAME(nn.Module):
             landmarks += transl.unsqueeze(dim=1)
             vertices += transl.unsqueeze(dim=1)
 
-        return vertices, landmarks
+        return vertices, landmarks, A
