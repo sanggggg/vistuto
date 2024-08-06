@@ -73,12 +73,6 @@ class FLAME(nn.Module):
         self.register_parameter('neck_pose', nn.Parameter(default_neck_pose,
                                                           requires_grad=False))
 
-        neck_kin_chain = []; NECK_IDX=1
-        curr_idx = torch.tensor(NECK_IDX, dtype=torch.long)
-        while curr_idx != -1:
-            neck_kin_chain.append(curr_idx)
-            curr_idx = self.parents[curr_idx]
-        self.register_buffer('neck_kin_chain', torch.stack(neck_kin_chain))
 
     def forward(self, shape_params=None, expression_params=None, pose_params=None, eye_pose_params=None):
         """

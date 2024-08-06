@@ -26,7 +26,7 @@ import cv2
 import pickle
 from .utils.renderer import SRenderY, set_rasterizer
 from .models.encoders import ResnetEncoder
-from .models.FLAME import FLAME
+from ..flamelib.FLAME import FLAME
 from .models.decoders import Generator
 from .utils import util
 from .utils.rotation_converter import batch_euler2axis
@@ -154,7 +154,7 @@ class DECA(nn.Module):
         batch_size = images.shape[0]
         
         ## decode
-        verts = self.flame(shape_params=codedict['shape'], expression_params=codedict['exp'], pose_params=codedict['pose'])
+        verts, A = self.flame(shape_params=codedict['shape'], expression_params=codedict['exp'], pose_params=codedict['pose'])
         albedo = torch.zeros([batch_size, 3, self.uv_size, self.uv_size], device=images.device) 
 
         ## projection
