@@ -26,7 +26,7 @@ import cv2
 import pickle
 from .utils.renderer import SRenderY, set_rasterizer
 from .models.encoders import ResnetEncoder
-from .models.FLAME import FLAME, FLAMETex
+from .models.FLAME import FLAME
 from .models.decoders import Generator
 from .utils import util
 from .utils.rotation_converter import batch_euler2axis
@@ -126,13 +126,6 @@ class DECA(nn.Module):
         uv_detail_normals = uv_detail_normals*self.uv_face_eye_mask + uv_coarse_normals*(1.-self.uv_face_eye_mask)
         return uv_detail_normals
 
-    def visofp(self, normals):
-        ''' visibility of keypoints, based on the normal direction
-        '''
-        normals68 = self.flame.seletec_3d68(normals)
-        vis68 = (normals68[:,:,2:] < 0.1).float()
-        return vis68
-
     # @torch.no_grad()
     def encode(self, images, use_detail=True):
         if use_detail:
@@ -155,26 +148,20 @@ class DECA(nn.Module):
         return codedict
 
     # @torch.no_grad()
-    def decode(self, codedict, rendering=True, iddict=None, vis_lmk=True, return_vis=True, use_detail=True,
+    def decode(self, codedict, rendering=True, iddict=None, return_vis=True, use_detail=True,
                 render_orig=False, original_image=None, tform=None):
         images = codedict['images']
         batch_size = images.shape[0]
         
         ## decode
-        verts, landmarks2d, landmarks3d = self.flame(shape_params=codedict['shape'], expression_params=codedict['exp'], pose_params=codedict['pose'])
+        verts = self.flame(shape_params=codedict['shape'], expression_params=codedict['exp'], pose_params=codedict['pose'])
         albedo = torch.zeros([batch_size, 3, self.uv_size, self.uv_size], device=images.device) 
-        landmarks3d_world = landmarks3d.clone()
 
         ## projection
-        landmarks2d = util.batch_orth_proj(landmarks2d, codedict['cam'])[:,:,:2]; landmarks2d[:,:,1:] = -landmarks2d[:,:,1:]#; landmarks2d = landmarks2d*self.image_size/2 + self.image_size/2
-        landmarks3d = util.batch_orth_proj(landmarks3d, codedict['cam']); landmarks3d[:,:,1:] = -landmarks3d[:,:,1:] #; landmarks3d = landmarks3d*self.image_size/2 + self.image_size/2
         trans_verts = util.batch_orth_proj(verts, codedict['cam']); trans_verts[:,:,1:] = -trans_verts[:,:,1:]
         opdict = {
             'verts': verts,
             'trans_verts': trans_verts,
-            'landmarks2d': landmarks2d,
-            'landmarks3d': landmarks3d,
-            'landmarks3d_world': landmarks3d_world,
         }
 
         ## rendering
@@ -183,8 +170,6 @@ class DECA(nn.Module):
             _, _, h, w = original_image.shape
             # import ipdb; ipdb.set_trace()
             trans_verts = transform_points(trans_verts, tform, points_scale, [h, w])
-            landmarks2d = transform_points(landmarks2d, tform, points_scale, [h, w])
-            landmarks3d = transform_points(landmarks3d, tform, points_scale, [h, w])
             background = original_image
             images = original_image
         else:
@@ -212,11 +197,6 @@ class DECA(nn.Module):
             opdict['normals'] = ops['normals']
             opdict['uv_detail_normals'] = uv_detail_normals
             opdict['displacement_map'] = uv_z+self.fixed_uv_dis[None,None,:,:]
-        
-        if vis_lmk:
-            landmarks3d_vis = self.visofp(ops['transformed_normals'])#/self.image_size
-            landmarks3d = torch.cat([landmarks3d, landmarks3d_vis], dim=2)
-            opdict['landmarks3d'] = landmarks3d
 
         if return_vis:
             ## render shape
@@ -233,8 +213,6 @@ class DECA(nn.Module):
             opdict['uv_texture_gt'] = uv_texture_gt
             visdict = {
                 'inputs': images, 
-                'landmarks2d': util.tensor_vis_landmarks(images, landmarks2d),
-                'landmarks3d': util.tensor_vis_landmarks(images, landmarks3d),
                 'shape_images': shape_images,
                 'shape_detail_images': shape_detail_images
             }
