@@ -79,8 +79,6 @@ class DECA(nn.Module):
         self.E_detail = ResnetEncoder(outsize=self.n_detail).to(self.device)
         # decoders
         self.flame = FLAME(model_cfg).to(self.device)
-        if model_cfg.use_tex:
-            self.flametex = FLAMETex(model_cfg).to(self.device)
         self.D_detail = Generator(latent_dim=self.n_detail+self.n_cond, out_channels=1, out_scale=model_cfg.max_z, sample_mode = 'bilinear').to(self.device)
         # resume model
         model_path = self.cfg.pretrained_modelpath
@@ -164,10 +162,7 @@ class DECA(nn.Module):
         
         ## decode
         verts, landmarks2d, landmarks3d = self.flame(shape_params=codedict['shape'], expression_params=codedict['exp'], pose_params=codedict['pose'])
-        if self.cfg.model.use_tex:
-            albedo = self.flametex(codedict['tex'])
-        else:
-            albedo = torch.zeros([batch_size, 3, self.uv_size, self.uv_size], device=images.device) 
+        albedo = torch.zeros([batch_size, 3, self.uv_size, self.uv_size], device=images.device) 
         landmarks3d_world = landmarks3d.clone()
 
         ## projection
@@ -205,9 +200,6 @@ class DECA(nn.Module):
             opdict['alpha_images'] = ops['alpha_images']
             opdict['normal_images'] = ops['normal_images']
         
-        if self.cfg.model.use_tex:
-            opdict['albedo'] = albedo
-            
         if use_detail:
             uv_z = self.D_detail(torch.cat([codedict['pose'][:,3:], codedict['exp'], codedict['detail']], dim=1))
             if iddict is not None:
@@ -236,14 +228,7 @@ class DECA(nn.Module):
             ## TODO: current resolution 256x256, support higher resolution, and add visibility
             uv_pverts = self.render.world2uv(trans_verts)
             uv_gt = F.grid_sample(images, uv_pverts.permute(0,2,3,1)[:,:,:,:2], mode='bilinear', align_corners=False)
-            if self.cfg.model.use_tex:
-                ## TODO: poisson blending should give better-looking results
-                if self.cfg.model.extract_tex:
-                    uv_texture_gt = uv_gt[:,:3,:,:]*self.uv_face_eye_mask + (uv_texture[:,:3,:,:]*(1-self.uv_face_eye_mask))
-                else:
-                    uv_texture_gt = uv_texture[:,:3,:,:]
-            else:
-                uv_texture_gt = uv_gt[:,:3,:,:]*self.uv_face_eye_mask + (torch.ones_like(uv_gt[:,:3,:,:])*(1-self.uv_face_eye_mask)*0.7)
+            uv_texture_gt = uv_gt[:,:3,:,:]*self.uv_face_eye_mask + (torch.ones_like(uv_gt[:,:3,:,:])*(1-self.uv_face_eye_mask)*0.7)
             
             opdict['uv_texture_gt'] = uv_texture_gt
             visdict = {
@@ -253,8 +238,6 @@ class DECA(nn.Module):
                 'shape_images': shape_images,
                 'shape_detail_images': shape_detail_images
             }
-            if self.cfg.model.use_tex:
-                visdict['rendered_images'] = ops['images']
 
             return opdict, visdict
 

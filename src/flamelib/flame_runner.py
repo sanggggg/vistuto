@@ -12,8 +12,6 @@ class Cfg:
         self.pose_params = 6
         self.use_face_contour = True
         self.use_3D_translation = True
-        self.optimize_eyeballpose = False
-        self.optimize_neckpose = False
         self.batch_size = 1
 
 class FlameRunner:
