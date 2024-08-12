@@ -1,4 +1,6 @@
 import faulthandler
+
+from src.utils.meshes import get_sunglass_meshes
 faulthandler.enable()
 
 import src.flamelib.flame_runner as flame_runner
@@ -80,6 +82,12 @@ class FlameWindow:
             self._panel.add_child(slider)
         self._panel.add_fixed(0.5 * em)
 
+        self._show_sunglasses = gui.Checkbox("Show Sunglasses")
+        self._show_sunglasses.set_on_checked(self.show_sunglasses)
+        self._panel.add_child(self._show_sunglasses)
+        self._panel.add_fixed(0.5 * em)
+        self.should_show_sunglasses = False
+
         self._sunglass_params = []
         self._panel.add_child(gui.Label("Sunglass Params"))
         for i in range(3):
@@ -129,6 +137,10 @@ class FlameWindow:
         self.is_done = True
         return True
     
+    def show_sunglasses(self, value):
+        self.should_show_sunglasses = value
+        threading.Thread(target=self.calculate).start()
+    
     def calculate(self, reset_camera=False):
         if self.is_updating:
             return
@@ -139,20 +151,15 @@ class FlameWindow:
             o3d.utility.Vector3iVector(faces),
         )
         mesh.compute_vertex_normals()
-        sunglasses = transform_mesh(np.array(
-            [[0.1, 0, 0, self.sunglasses_params[0]],
-             [0, 0.1, 0, self.sunglasses_params[1]],
-             [0, 0, 0.1, self.sunglasses_params[2]],
-             [0, 0, 0, 1],
-            ]
-        ), o3d.io.read_triangle_model("assets/Sunglasses.obj").meshes[0].mesh)
+        sunglasses = get_sunglass_meshes(self.sunglasses_params)
         sunglasses = transform_mesh(trans[0][1].detach().cpu().numpy(), sunglasses)
         sunglasses.compute_vertex_normals()
 
         def update():
             self._scene.scene.clear_geometry()
             self._scene.scene.add_geometry("flame", mesh, self.mat)
-            self._scene.scene.add_geometry("suglasses", sunglasses, self.mat)
+            if self.should_show_sunglasses:
+                self._scene.scene.add_geometry("suglasses", sunglasses, self.mat)
             if reset_camera:
                 bounds = self._scene.scene.bounding_box
                 self._scene.setup_camera(60.0, bounds, bounds.get_center())
