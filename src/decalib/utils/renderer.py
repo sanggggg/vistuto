@@ -170,10 +170,11 @@ class Pytorch3dRasterizer(nn.Module):
         return pixel_vals
 
 class SRenderY(nn.Module):
-    def __init__(self, image_size, obj_filename, uv_size=256, rasterizer_type='pytorch3d'):
+    def __init__(self, image_size, obj_filename, uv_size=256, rasterizer_type='pytorch3d', is_cool=False):
         super(SRenderY, self).__init__()
         self.image_size = image_size
         self.uv_size = uv_size
+        self.is_cool = is_cool
         if rasterizer_type == 'pytorch3d':
             self.rasterizer = Pytorch3dRasterizer(image_size)
             self.uv_rasterizer = Pytorch3dRasterizer(uv_size)
@@ -185,10 +186,18 @@ class SRenderY(nn.Module):
             self.rasterizer = StandardRasterizer(image_size)
             self.uv_rasterizer = StandardRasterizer(uv_size)
             verts, uvcoords, faces, uvfaces = load_obj(obj_filename)
-            verts = verts[None, ...]
-            uvcoords = uvcoords[None, ...]
-            faces = faces[None, ...]
-            uvfaces = uvfaces[None, ...]
+            if is_cool:
+                gverts, guvcoords, gfaces, guvfaces = load_obj('assets/Sunglasses.obj')
+                self.sunglasses_vertices = gverts
+                faces = torch.cat([faces, gfaces+verts.shape[0]])[None, ...]
+                verts = torch.cat([verts, gverts])[None, ...]
+                uvfaces = torch.cat([uvfaces, guvfaces+uvcoords.shape[0]])[None, ...]
+                uvcoords = torch.cat([uvcoords, guvcoords])[None, ...]
+            else:
+                faces = faces[None, ...]
+                verts = verts[None, ...]
+                uvfaces = uvfaces[None, ...]
+                uvcoords = uvcoords[None, ...]
         else:
             NotImplementedError
 
@@ -230,6 +239,9 @@ class SRenderY(nn.Module):
         light_type:
             point or directional
         '''
+        if self.is_cool:
+            vertices[:,:-len(self.sunglasses_vertices),:] = 0
+            transformed_vertices[:,:-len(self.sunglasses_vertices),:] = 0
         batch_size = vertices.shape[0]
         ## rasterizer near 0 far 100. move mesh so minz larger than 0
         transformed_vertices[:,:,2] = transformed_vertices[:,:,2] + 10

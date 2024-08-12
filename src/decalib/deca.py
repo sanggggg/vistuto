@@ -24,6 +24,8 @@ from time import time
 from skimage.io import imread
 import cv2
 import pickle
+
+from ..utils.meshes import get_sunglass_meshes
 from .utils.renderer import SRenderY, set_rasterizer
 from .models.encoders import ResnetEncoder
 from ..flamelib.FLAME import FLAME
@@ -51,7 +53,7 @@ class DECA(nn.Module):
 
     def _setup_renderer(self, model_cfg):
         set_rasterizer(self.cfg.rasterizer_type)
-        self.render = SRenderY(self.image_size, obj_filename=model_cfg.topology_path, uv_size=model_cfg.uv_size, rasterizer_type=self.cfg.rasterizer_type).to(self.device)
+        self.render = SRenderY(self.image_size, obj_filename=model_cfg.topology_path, uv_size=model_cfg.uv_size, rasterizer_type=self.cfg.rasterizer_type, is_cool=model_cfg.is_cool).to(self.device)
         # face mask for rendering details
         mask = imread(model_cfg.face_eye_mask_path).astype(np.float32)/255.; mask = torch.from_numpy(mask[:,:,0])[None,None,:,:].contiguous()
         self.uv_face_eye_mask = F.interpolate(mask, [model_cfg.uv_size, model_cfg.uv_size]).to(self.device)
@@ -73,6 +75,8 @@ class DECA(nn.Module):
         self.n_cond = model_cfg.n_exp + 3 # exp + jaw pose
         self.num_list = [model_cfg.n_shape, model_cfg.n_tex, model_cfg.n_exp, model_cfg.n_pose, model_cfg.n_cam, model_cfg.n_light]
         self.param_dict = {i:model_cfg.get('n_' + i) for i in model_cfg.param_list}
+
+        self.sunglasses_vertices = np.array(get_sunglass_meshes().vertices)
 
         # encoders
         self.E_flame = ResnetEncoder(outsize=self.n_param).to(self.device) 
@@ -154,7 +158,21 @@ class DECA(nn.Module):
         batch_size = images.shape[0]
         
         ## decode
-        verts, A = self.flame(shape_params=codedict['shape'], expression_params=codedict['exp'], pose_params=codedict['pose'])
+        verts, rotation = self.flame(shape_params=codedict['shape'], expression_params=codedict['exp'], pose_params=codedict['pose'])
+
+        if self.cfg.model.is_cool:
+            rotation = rotation[:,1]
+            glasses_verts = self.render.sunglasses_vertices.to(self.device).repeat(batch_size, 1, 1)
+            glasses_verts = torch.cat((glasses_verts, torch.ones_like(glasses_verts[:, :, :1])), dim=-1)
+            glasses_verts = rotation @ torch.Tensor([
+                [0.09, 0, 0, 0.0],
+                [0, 0.09, 0, 0.027],
+                [0, 0, 0.09, 0.058],
+                [0, 0, 0, 1],
+            ]).to(self.device) @ glasses_verts.transpose(1,2)
+            glasses_verts = glasses_verts.transpose(1,2)[:,:,:3]
+            verts = torch.cat((verts, glasses_verts), dim=1)
+
         albedo = torch.zeros([batch_size, 3, self.uv_size, self.uv_size], device=images.device) 
 
         ## projection

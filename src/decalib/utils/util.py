@@ -188,13 +188,32 @@ def load_obj(obj_filename):
             # Update face properties info.
             face = tokens[1:]
             face_list = [f.split("/") for f in face]
-            for vert_props in face_list:
-                # Vertex index.
-                faces.append(int(vert_props[0]))
-                if len(vert_props) > 1:
-                    if vert_props[1] != "":
-                        # Texture index is present e.g. f 4/1/1.
-                        uv_faces.append(int(vert_props[1]))
+            if len(face_list) == 3:
+                for vert_props in face_list:
+                    # Vertex index.
+                    faces.append(int(vert_props[0]))
+                    if len(vert_props) > 1:
+                        if vert_props[1] != "":
+                            # Texture index is present e.g. f 4/1/1.
+                            uv_faces.append(int(vert_props[1]))
+            elif len(face_list) == 4:
+                face_list_sub = [face_list[0], face_list[1], face_list[2]]
+                for vert_props in face_list_sub:
+                    # Vertex index.
+                    faces.append(int(vert_props[0]))
+                    if len(vert_props) > 1:
+                        if vert_props[1] != "":
+                            # Texture index is present e.g. f 4/1/1.
+                            uv_faces.append(int(vert_props[1]))
+                face_list_sub = [face_list[0], face_list[2], face_list[3]]
+                for vert_props in face_list_sub:
+                    # Vertex index.
+                    faces.append(int(vert_props[0]))
+                    if len(vert_props) > 1:
+                        if vert_props[1] != "":
+                            # Texture index is present e.g. f 4/1/1.
+                            uv_faces.append(int(vert_props[1]))
+
 
     verts = torch.tensor(verts, dtype=torch.float32)
     uvcoords = torch.tensor(uvcoords, dtype=torch.float32)

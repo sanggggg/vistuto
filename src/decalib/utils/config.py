@@ -47,6 +47,7 @@ cfg.model.use_tex = False
 cfg.model.jaw_type = 'aa' # default use axis angle, another option: euler. Note that: aa is not stable in the beginning
 # face recognition model
 cfg.model.fr_model_path = os.path.join(cfg.deca_dir, 'data', 'resnet50_ft_weight.pkl')
+cfg.model.is_cool = True
 
 ## details
 cfg.model.n_detail = 128
