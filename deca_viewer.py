@@ -92,6 +92,7 @@ def tensor2image(tensor):
 
 def main(args):
     testdata = datasets.TestData(args.inputpath, iscrop=True, crop_size=224, face_detector='fan', sample_step=5)
+    deca_cfg.model.is_cool = args.cool
     deca = DECA(config=deca_cfg, device='cuda')
 
     total_frames = len(testdata)
@@ -131,4 +132,5 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='DECA: Detailed Expression Capture and Animation')
     parser.add_argument('-i', '--inputpath', default='TestSamples/examples', type=str,
                         help='path to the test data, can be image folder, image path, image list, video')        
+    parser.add_argument('--cool', action='store_true', help='cool mode')
     main(parser.parse_args())

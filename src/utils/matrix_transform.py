@@ -1,12 +1,4 @@
 import numpy as np
-import open3d as o3d
-
-def transform_mesh(mat, mesh):
-    trans_vertices = transform_vertices(mat, mesh.vertices)
-    return o3d.geometry.TriangleMesh(
-        o3d.utility.Vector3dVector(trans_vertices),
-        mesh.triangles,
-    )
 
 def transform_vertices(mat, vertices):
     homo_vertices = np.pad(np.array(vertices), ((0, 0), (0, 1)), mode='constant', constant_values=1)
