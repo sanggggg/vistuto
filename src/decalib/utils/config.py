@@ -8,7 +8,7 @@ import os
 
 cfg = CN()
 
-abs_deca_dir = os.path.abspath('/home/sangmin/DECA')
+abs_deca_dir = '.'
 cfg.deca_dir = abs_deca_dir
 cfg.device = 'cuda'
 cfg.device_id = '0'
@@ -22,18 +22,11 @@ cfg.rasterizer_type = 'standard'
 cfg.model = CN()
 cfg.model.topology_path = os.path.join(cfg.deca_dir, 'data', 'head_template.obj')
 # texture data original from http://files.is.tue.mpg.de/tbolkart/FLAME/FLAME_texture_data.zip
-cfg.model.dense_template_path = os.path.join(cfg.deca_dir, 'data', 'texture_data_256.npy')
-cfg.model.fixed_displacement_path = os.path.join(cfg.deca_dir, 'data', 'fixed_displacement_256.npy')
 cfg.model.flame_model_path = os.path.join(cfg.deca_dir, 'data', 'generic_model.pkl') 
-cfg.model.flame_lmk_embedding_path = os.path.join(cfg.deca_dir, 'data', 'landmark_embedding.npy') 
-cfg.model.face_mask_path = os.path.join(cfg.deca_dir, 'data', 'uv_face_mask.png') 
-cfg.model.face_eye_mask_path = os.path.join(cfg.deca_dir, 'data', 'uv_face_eye_mask.png') 
-cfg.model.mean_tex_path = os.path.join(cfg.deca_dir, 'data', 'mean_texture.jpg') 
 cfg.model.use_3D_translation = True
 cfg.model.batch_size = 5
 cfg.model.shape_params = 100
 cfg.model.expression_params = 50
-cfg.model.tex_path = os.path.join(cfg.deca_dir, 'data', 'FLAME_albedo_from_BFM.npz') 
 cfg.model.tex_type = 'BFM' # BFM, FLAME, albedoMM
 cfg.model.uv_size = 256
 cfg.model.param_list = ['shape', 'tex', 'exp', 'pose', 'cam', 'light']

@@ -24,42 +24,6 @@ from skimage.io import imsave
 import cv2
 import torchvision
 
-def upsample_mesh(vertices, normals, faces, displacement_map, texture_map, dense_template):
-    ''' Credit to Timo
-    upsampling coarse mesh (with displacment map)
-        vertices: vertices of coarse mesh, [nv, 3]
-        normals: vertex normals, [nv, 3]
-        faces: faces of coarse mesh, [nf, 3]
-        texture_map: texture map, [256, 256, 3]
-        displacement_map: displacment map, [256, 256]
-        dense_template: 
-    Returns: 
-        dense_vertices: upsampled vertices with details, [number of dense vertices, 3]
-        dense_colors: vertex color, [number of dense vertices, 3]
-        dense_faces: [number of dense faces, 3]
-    '''
-    img_size = dense_template['img_size']
-    dense_faces = dense_template['f']
-    x_coords = dense_template['x_coords']
-    y_coords = dense_template['y_coords']
-    valid_pixel_ids = dense_template['valid_pixel_ids']
-    valid_pixel_3d_faces = dense_template['valid_pixel_3d_faces']
-    valid_pixel_b_coords = dense_template['valid_pixel_b_coords']
-
-    pixel_3d_points = vertices[valid_pixel_3d_faces[:, 0], :] * valid_pixel_b_coords[:, 0][:, np.newaxis] + \
-                    vertices[valid_pixel_3d_faces[:, 1], :] * valid_pixel_b_coords[:, 1][:, np.newaxis] + \
-                    vertices[valid_pixel_3d_faces[:, 2], :] * valid_pixel_b_coords[:, 2][:, np.newaxis]
-    vertex_normals = normals
-    pixel_3d_normals = vertex_normals[valid_pixel_3d_faces[:, 0], :] * valid_pixel_b_coords[:, 0][:, np.newaxis] + \
-                    vertex_normals[valid_pixel_3d_faces[:, 1], :] * valid_pixel_b_coords[:, 1][:, np.newaxis] + \
-                    vertex_normals[valid_pixel_3d_faces[:, 2], :] * valid_pixel_b_coords[:, 2][:, np.newaxis]
-    pixel_3d_normals = pixel_3d_normals / np.linalg.norm(pixel_3d_normals, axis=-1)[:, np.newaxis]
-    displacements = displacement_map[y_coords[valid_pixel_ids].astype(int), x_coords[valid_pixel_ids].astype(int)]
-    dense_colors = texture_map[y_coords[valid_pixel_ids].astype(int), x_coords[valid_pixel_ids].astype(int)]
-    offsets = np.einsum('i,ij->ij', displacements, pixel_3d_normals)
-    dense_vertices = pixel_3d_points + offsets
-    return dense_vertices, dense_colors, dense_faces
-
 # borrowed from https://github.com/YadiraF/PRNet/blob/master/utils/write.py
 def write_obj(obj_name,
               vertices,
